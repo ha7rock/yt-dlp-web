@@ -83,6 +83,22 @@ def test_build_command_audio_only_extracts_mp3(monkeypatch, tmp_path):
     assert "-f" not in cmd
 
 
+def test_ios_compatible_format_matches_metube_strategy(monkeypatch, tmp_path):
+    monkeypatch.setenv("HOME", str(tmp_path))
+    cmd, _ = build_yt_dlp_command({
+        "url": "https://www.youtube.com/watch?v=abc",
+        "format": "ios",
+        "quality": "1080",
+    })
+
+    fmt = cmd[cmd.index("-f") + 1]
+    assert "vcodec~='^((he|a)vc|h26[45])'" in fmt
+    assert "bestaudio[acodec=aac]" in fmt
+    assert "bestaudio[ext=m4a]" in fmt
+    assert "bestvideo[ext=mp4][height<=1080]+bestaudio[ext=m4a]" in fmt
+    assert "best[ext=mp4][height<=1080]" in fmt
+
+
 def test_bilibili_default_format_keeps_best_and_relies_on_hvc1_postprocess(monkeypatch, tmp_path):
     monkeypatch.setenv("HOME", str(tmp_path))
     cmd, _ = build_yt_dlp_command({"url": "https://www.bilibili.com/video/BV123", "format": "bv*+ba/b"})

@@ -48,6 +48,13 @@ def test_tasks_section_only_shows_active_downloads_and_refreshes_history_on_comp
     assert "loadHistory(1, {force: true})" in js
 
 
+def test_ios_compatible_format_option_exists():
+    html = (APP_JS.parent / "index.html").read_text(encoding="utf-8")
+
+    assert 'value="ios"' in html
+    assert "iOS 兼容" in html
+
+
 def test_clipboard_button_has_ios_safari_manual_paste_fallback():
     js = APP_JS.read_text(encoding="utf-8")
 

@@ -270,6 +270,16 @@ def normalize_input_url(raw: str) -> str:
 def _quality_format(base_format: str, quality: str) -> str:
     base_format = base_format or "bv*+ba/b"
     quality = (quality or "best").strip()
+    if base_format == "ios":
+        vres = f"[height<={int(quality)}]" if quality.isdigit() else ""
+        # Mirrors MeTube's "iOS Compatible" selector: avoid VP9/Opus by preferring
+        # AVC/H.264 or HEVC/H.265 video plus AAC/m4a audio, then MP4 fallback.
+        return (
+            f"bestvideo[vcodec~='^((he|a)vc|h26[45])']{vres}+bestaudio[acodec=aac]/"
+            f"bestvideo[vcodec~='^((he|a)vc|h26[45])']{vres}+bestaudio[ext=m4a]/"
+            f"bestvideo[ext=mp4]{vres}+bestaudio[ext=m4a]/"
+            f"best[ext=mp4]{vres}"
+        )
     # If the user chose an exact source format from yt-dlp -J, do not rewrite it.
     # Quality caps only apply to the generic best-video/best-audio presets.
     if base_format not in {"bv*+ba/b", "best", "worst"}:
