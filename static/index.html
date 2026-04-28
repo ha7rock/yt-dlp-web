@@ -1,0 +1,136 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>yt-dlp 下载器</title>
+  <link rel="stylesheet" href="/style.css" />
+</head>
+<body>
+  <main class="wrap">
+    <header>
+      <div>
+        <h1>yt-dlp 下载器</h1>
+        <p>X / YouTube / B站 / 其他 yt-dlp 支持站点。默认保存到本机 Downloads。</p>
+      </div>
+      <button id="refreshJobs" class="ghost">刷新任务</button>
+    </header>
+
+    <section class="card">
+      <label class="label" for="url">视频链接</label>
+      <div class="url-row">
+        <input id="url" type="url" placeholder="可直接粘贴 App 分享文案，例如：【标题】 https://b23.tv/..." />
+        <button id="pasteClipboard" class="secondary">粘贴剪切板</button>
+        <button id="probe">读取格式</button>
+      </div>
+      <p class="hint">X 保存到 <code>~/Downloads/x-videos/</code>，YouTube 到 <code>youtube-videos/</code>，B站到 <code>bilibili-videos/</code>。</p>
+      <div id="info" class="info hidden"></div>
+    </section>
+
+    <section class="grid">
+      <div class="card">
+        <h2>视频设置</h2>
+        <label><input id="audioOnly" type="checkbox" /> 只下载音频</label>
+        <div class="two">
+          <label>清晰度
+            <select id="quality">
+              <option value="best">最佳</option>
+              <option value="2160">4K / 2160p 以下</option>
+              <option value="1440">1440p 以下</option>
+              <option value="1080">1080p 以下</option>
+              <option value="720">720p 以下</option>
+              <option value="480">480p 以下</option>
+              <option value="360">360p 以下</option>
+            </select>
+          </label>
+          <label>合并格式
+            <select id="mergeOutputFormat">
+              <option value="mp4">mp4</option>
+              <option value="mkv">mkv</option>
+              <option value="webm">webm</option>
+              <option value="">yt-dlp 默认</option>
+            </select>
+          </label>
+        </div>
+        <label>格式选择
+          <select id="format">
+            <option value="bv*+ba/b">最佳视频+最佳音频</option>
+            <option value="best">单文件最佳</option>
+            <option value="worst">最小/最低清晰度</option>
+          </select>
+        </label>
+        <label>音频格式
+          <select id="audioFormat">
+            <option value="mp3">mp3</option>
+            <option value="m4a">m4a</option>
+            <option value="opus">opus</option>
+            <option value="wav">wav</option>
+          </select>
+        </label>
+      </div>
+
+      <div class="card">
+        <h2>字幕 / 元数据</h2>
+        <label><input id="writeSubs" type="checkbox" /> 下载人工字幕</label>
+        <label><input id="writeAutoSubs" type="checkbox" /> 下载自动字幕</label>
+        <label><input id="embedSubs" type="checkbox" /> 嵌入字幕</label>
+        <label>字幕语言
+          <input id="subLangs" placeholder="zh-Hans,en 或 all" />
+        </label>
+        <label><input id="embedMetadata" type="checkbox" checked /> 嵌入元数据</label>
+        <label><input id="writeThumbnail" type="checkbox" /> 下载封面</label>
+        <label><input id="embedThumbnail" type="checkbox" /> 嵌入封面</label>
+      </div>
+
+      <div class="card">
+        <h2>其他 yt-dlp 设置</h2>
+        <label><input id="playlist" type="checkbox" /> 下载播放列表</label>
+        <label><input id="cookiesFromBrowser" type="checkbox" /> 使用浏览器 Cookies</label>
+        <label>浏览器
+          <select id="browser">
+            <option value="chrome">chrome</option>
+            <option value="chromium">chromium</option>
+            <option value="firefox">firefox</option>
+            <option value="edge">edge</option>
+          </select>
+        </label>
+        <div class="two">
+          <label>限速
+            <input id="rateLimit" placeholder="2M / 500K" />
+          </label>
+          <label>重试次数
+            <input id="retries" placeholder="10" />
+          </label>
+        </div>
+        <label>高级参数（直接追加给 yt-dlp）
+          <input id="extraArgs" placeholder="--no-mtime --restrict-filenames" />
+        </label>
+      </div>
+    </section>
+
+    <section class="actions">
+      <button id="download" class="primary">开始下载</button>
+      <span id="status"></span>
+    </section>
+
+    <section class="card">
+      <h2>任务</h2>
+      <div id="jobs" class="jobs"></div>
+    </section>
+
+    <section class="card history-card">
+      <div class="section-row">
+        <h2>历史下载</h2>
+        <button id="refreshHistory" class="ghost">刷新历史</button>
+      </div>
+      <div id="history" class="history"></div>
+      <div class="pager">
+        <button id="prevHistory" class="ghost">上一页</button>
+        <span id="historyPage">第 1 页</span>
+        <button id="nextHistory" class="ghost">下一页</button>
+      </div>
+    </section>
+  </main>
+  <script src="/app.js"></script>
+</body>
+</html>

@@ -1,0 +1,16 @@
+[Unit]
+Description=yt-dlp LAN Web UI
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+WorkingDirectory=/home/tetsu/yt-dlp-web
+Environment=PATH=/home/tetsu/.hermes/hermes-agent/venv/bin:/usr/local/bin:/usr/bin:/bin
+Environment=HOME=/home/tetsu
+ExecStart=/home/tetsu/.hermes/hermes-agent/venv/bin/python3 /home/tetsu/yt-dlp-web/app.py --host 0.0.0.0 --port 8765
+Restart=on-failure
+RestartSec=3
+
+[Install]
+WantedBy=default.target
