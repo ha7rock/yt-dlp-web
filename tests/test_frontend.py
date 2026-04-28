@@ -35,6 +35,14 @@ def test_download_polling_stops_when_no_active_jobs():
     assert "pollTimer = null" in js
 
 
+def test_clipboard_button_has_ios_safari_manual_paste_fallback():
+    js = APP_JS.read_text(encoding="utf-8")
+
+    assert "当前浏览器不允许自动读取剪切板" in js
+    assert "$('url').focus()" in js
+    assert "$('url').select()" in js
+
+
 def test_clipboard_button_and_frontend_url_extraction_exist():
     js = APP_JS.read_text(encoding="utf-8")
     html = (APP_JS.parent / "index.html").read_text(encoding="utf-8")

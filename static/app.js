@@ -69,7 +69,9 @@ $('pasteClipboard').onclick = async () => {
     $('url').value = extractUrlFromInput(text);
     debugLog('clipboard pasted', {rawLength: text.length, url: $('url').value});
   } catch (e) {
-    setStatus('无法读取剪切板：请确认浏览器权限，或手动粘贴');
+    $('url').focus();
+    $('url').select();
+    setStatus('当前浏览器不允许自动读取剪切板，请长按/⌘V 手动粘贴到输入框');
     debugLog('clipboard read failed', {error: e.message});
   }
 };

@@ -267,12 +267,27 @@ def normalize_input_url(raw: str) -> str:
     return match.group(0).rstrip(".,，。!！?？;；)）]】>")
 
 
-def _quality_format(base_format: str, quality: str) -> str:
+def _is_generic_format(base_format: str) -> bool:
+    return base_format in {"bv*+ba/b", "best", "worst"}
+
+
+def _default_video_format(url: str, base_format: str, quality: str) -> str:
     base_format = base_format or "bv*+ba/b"
+    quality = (quality or "best").strip()
+    if not is_bilibili_url(url) or base_format != "bv*+ba/b":
+        return base_format
+    height_filter = f"[height<={int(quality)}]" if quality.isdigit() else ""
+    # BiliBili often exposes HEVC/AV1 as the best MP4 video stream. Those files are
+    # valid MP4 but are not reliably accepted by iPad Photos. Prefer AVC/H.264.
+    return f"bv*[vcodec^=avc1]{height_filter}+ba/bv*{height_filter}+ba/b{height_filter}"
+
+
+def _quality_format(url: str, base_format: str, quality: str) -> str:
+    base_format = _default_video_format(url, base_format or "bv*+ba/b", quality)
     quality = (quality or "best").strip()
     # If the user chose an exact source format from yt-dlp -J, do not rewrite it.
     # Quality caps only apply to the generic best-video/best-audio presets.
-    if base_format not in {"bv*+ba/b", "best", "worst"}:
+    if not _is_generic_format(base_format):
         return base_format
     if not quality or quality == "best" or base_format in {"best", "worst"}:
         return base_format
@@ -297,7 +312,7 @@ def build_yt_dlp_command(options: dict[str, Any]) -> tuple[list[str], Path]:
     if options.get("audio_only"):
         cmd.extend(["-x", "--audio-format", str(options.get("audio_format") or "mp3")])
     else:
-        fmt = _quality_format(str(options.get("format") or "bv*+ba/b"), str(options.get("quality") or "best"))
+        fmt = _quality_format(url, str(options.get("format") or "bv*+ba/b"), str(options.get("quality") or "best"))
         if fmt:
             cmd.extend(["-f", fmt])
         merge_format = str(options.get("merge_output_format") or "").strip()

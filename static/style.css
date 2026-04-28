@@ -46,6 +46,7 @@ button:hover { transform:translateY(-1px); border-color:#64748b; }
 .history-card { margin-top:14px; }
 .history { display:flex; flex-direction:column; gap:12px; }
 .history-item { display:grid; grid-template-columns: minmax(0,1fr) minmax(260px, 36%); gap:14px; padding:12px; border:1px solid #253247; border-radius:14px; background:#0b1220; }
+.job p { overflow-wrap:anywhere; word-break:break-word; }
 .history-title { font-weight:800; word-break:break-word; }
 .history-meta, .history-url, .muted { color:#94a3b8; font-size:13px; margin-top:6px; word-break:break-all; }
 .history-actions { display:flex; gap:10px; margin-top:12px; flex-wrap:wrap; }

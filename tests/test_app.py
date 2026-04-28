@@ -81,6 +81,15 @@ def test_build_command_audio_only_extracts_mp3(monkeypatch, tmp_path):
     assert "-f" not in cmd
 
 
+def test_bilibili_default_format_prefers_h264_for_ipad_compatibility(monkeypatch, tmp_path):
+    monkeypatch.setenv("HOME", str(tmp_path))
+    cmd, _ = build_yt_dlp_command({"url": "https://www.bilibili.com/video/BV123", "format": "bv*+ba/b"})
+
+    fmt = cmd[cmd.index("-f") + 1]
+    assert fmt.startswith("bv*[vcodec^=avc1]")
+    assert "+ba/" in fmt
+
+
 def test_exact_source_format_is_not_overridden_by_quality(monkeypatch, tmp_path):
     monkeypatch.setenv("HOME", str(tmp_path))
     cmd, _ = build_yt_dlp_command({
