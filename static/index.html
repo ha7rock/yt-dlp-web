@@ -54,11 +54,11 @@
         <label>格式选择
           <select id="format">
             <option value="bv*+ba/b">最佳视频+最佳音频</option>
-            <option value="ios">iOS 兼容（MP4/AAC，优先避开 VP9/Opus）</option>
             <option value="best">单文件最佳</option>
             <option value="worst">最小/最低清晰度</option>
           </select>
         </label>
+        <label><input id="iosCompatible" type="checkbox" disabled /> iOS 兼容（仅 YouTube：筛选 MP4/AAC，可能牺牲 HDR）</label>
         <label>音频格式
           <select id="audioFormat">
             <option value="mp3">mp3</option>

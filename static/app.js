@@ -19,9 +19,26 @@ function extractUrlFromInput(raw) {
   return match ? match[0].replace(/[.,，。!！?？;；)）\]】>]+$/, '') : text;
 }
 
+function isYouTubeUrl(raw) {
+  try {
+    const host = new URL(extractUrlFromInput(raw)).hostname.toLowerCase();
+    return ['youtube.com', 'www.youtube.com', 'm.youtube.com', 'youtu.be', 'music.youtube.com'].includes(host);
+  } catch (_) {
+    return false;
+  }
+}
+
+function updateIosCompatibleAvailability() {
+  const enabled = isYouTubeUrl(val('url'));
+  $('iosCompatible').disabled = !enabled;
+  if (!enabled) $('iosCompatible').checked = false;
+  return enabled;
+}
+
 function normalizedUrl() {
   const url = extractUrlFromInput(val('url'));
   $('url').value = url;
+  updateIosCompatibleAvailability();
   return url;
 }
 
@@ -31,6 +48,7 @@ function payload() {
     audio_only: checked('audioOnly'),
     quality: val('quality'),
     format: val('format'),
+    ios_compatible: checked('iosCompatible') && isYouTubeUrl(val('url')),
     merge_output_format: val('mergeOutputFormat'),
     audio_format: val('audioFormat'),
     write_subs: checked('writeSubs'),
@@ -67,6 +85,7 @@ $('pasteClipboard').onclick = async () => {
   try {
     const text = await navigator.clipboard.readText();
     $('url').value = extractUrlFromInput(text);
+    updateIosCompatibleAvailability();
     debugLog('clipboard pasted', {rawLength: text.length, url: $('url').value});
   } catch (e) {
     $('url').focus();
@@ -106,6 +125,7 @@ $('download').onclick = async () => {
   }
 };
 
+$('url').addEventListener('input', updateIosCompatibleAvailability);
 $('refreshJobs').onclick = loadJobs;
 $('refreshHistory').onclick = () => loadHistory(historyPage, {force: true});
 $('prevHistory').onclick = () => { if (historyPage > 1) loadHistory(historyPage - 1, {force: true}); };
@@ -249,3 +269,4 @@ function startPolling() {
 
 loadJobs();
 loadHistory();
+updateIosCompatibleAvailability();

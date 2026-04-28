@@ -267,19 +267,27 @@ def normalize_input_url(raw: str) -> str:
     return match.group(0).rstrip(".,，。!！?？;；)）]】>")
 
 
+def is_youtube_url(url: str) -> bool:
+    host = (urlparse(url).hostname or "").lower()
+    return host in {"youtube.com", "www.youtube.com", "m.youtube.com", "youtu.be", "music.youtube.com"}
+
+
+def ios_compatible_format(quality: str) -> str:
+    quality = (quality or "best").strip()
+    vres = f"[height<={int(quality)}]" if quality.isdigit() else ""
+    # Mirrors MeTube's "iOS Compatible" selector: avoid VP9/Opus by preferring
+    # AVC/H.264 or HEVC/H.265 video plus AAC/m4a audio, then MP4 fallback.
+    return (
+        f"bestvideo[vcodec~='^((he|a)vc|h26[45])']{vres}+bestaudio[acodec=aac]/"
+        f"bestvideo[vcodec~='^((he|a)vc|h26[45])']{vres}+bestaudio[ext=m4a]/"
+        f"bestvideo[ext=mp4]{vres}+bestaudio[ext=m4a]/"
+        f"best[ext=mp4]{vres}"
+    )
+
+
 def _quality_format(base_format: str, quality: str) -> str:
     base_format = base_format or "bv*+ba/b"
     quality = (quality or "best").strip()
-    if base_format == "ios":
-        vres = f"[height<={int(quality)}]" if quality.isdigit() else ""
-        # Mirrors MeTube's "iOS Compatible" selector: avoid VP9/Opus by preferring
-        # AVC/H.264 or HEVC/H.265 video plus AAC/m4a audio, then MP4 fallback.
-        return (
-            f"bestvideo[vcodec~='^((he|a)vc|h26[45])']{vres}+bestaudio[acodec=aac]/"
-            f"bestvideo[vcodec~='^((he|a)vc|h26[45])']{vres}+bestaudio[ext=m4a]/"
-            f"bestvideo[ext=mp4]{vres}+bestaudio[ext=m4a]/"
-            f"best[ext=mp4]{vres}"
-        )
     # If the user chose an exact source format from yt-dlp -J, do not rewrite it.
     # Quality caps only apply to the generic best-video/best-audio presets.
     if base_format not in {"bv*+ba/b", "best", "worst"}:
@@ -307,7 +315,10 @@ def build_yt_dlp_command(options: dict[str, Any]) -> tuple[list[str], Path]:
     if options.get("audio_only"):
         cmd.extend(["-x", "--audio-format", str(options.get("audio_format") or "mp3")])
     else:
-        fmt = _quality_format(str(options.get("format") or "bv*+ba/b"), str(options.get("quality") or "best"))
+        if options.get("ios_compatible") and is_youtube_url(url):
+            fmt = ios_compatible_format(str(options.get("quality") or "best"))
+        else:
+            fmt = _quality_format(str(options.get("format") or "bv*+ba/b"), str(options.get("quality") or "best"))
         if fmt:
             cmd.extend(["-f", fmt])
         merge_format = str(options.get("merge_output_format") or "").strip()
