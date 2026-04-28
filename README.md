@@ -1,23 +1,95 @@
 # yt-dlp Web
 
-局域网可访问的 yt-dlp 下载页面。
+局域网可访问的视频下载 Web UI，基于 yt-dlp，支持 X/Twitter、YouTube、B站等平台。
 
-## 启动
+## 功能特性
 
-```bash
-cd ~/yt-dlp-web
-./app.py --host 0.0.0.0 --port 8765
+- **多平台支持**：X/Twitter、YouTube、B站（带 412 防护）、及其他 yt-dlp 支持的站点
+- **App 分享文案解析**：直接粘贴 B站 App 分享链接，自动提取真实 URL
+- **格式预览**：下载前查看所有可选格式和分辨率
+- **历史下载**：分页浏览、预览播放、删除管理
+- **实时任务**：进度条、速度、ETA 实时更新
+- **跨平台文件服务**：通过 `/media/` 路径预览/下载，不暴露真实目录结构
+- **systemd 服务**：后台常驻，开机自启
+
+## 截图
+
+```
+┌─────────────────────────────────────────────────────┐
+│  yt-dlp 下载器                                      │
+├─────────────────────────────────────────────────────┤
+│  视频链接  [________________________] [粘贴] [读取格式] │
+│  ┌视频设置─────┐ ┌字幕/元数据───┐ ┌其他设置─────┐    │
+│  │ 清晰度  最佳│ │ ☑ 人工字幕  │ │ ☐ 播放列表 │    │
+│  │ 格式    ...│ │ ☑ 自动字幕  │ │ ☐ 浏览器Cookies│  │
+│  │ 音频格式 mp3│ │ ☑ 嵌入字幕  │ │ 限速  [    ] │    │
+│  └─────────────┘ └─────────────┘ └─────────────┘    │
+│                        [开始下载]                    │
+├─────────────────────────────────────────────────────┤
+│  任务                                               │
+│  ┌──────────────────────────────────────────────┐  │
+│  │ a1b2c3d4    running   42.3% · 1.2MiB/s      │  │
+│  │ https://x.com/...                            │  │
+│  │ ████████████░░░░░░░░ ETA 00:17             │  │
+│  └──────────────────────────────────────────────┘  │
+├─────────────────────────────────────────────────────┤
+│  历史下载                           [刷新] [1/3页]  │
+│  ┌──────────────────────────────────────────────┐  │
+│  │ video-title.mp4  12.3MB  video/mp4   2026-04-28│  │
+│  │ [下载] [删除]  ▼ 预览  [▶ video player    ] │  │
+│  └──────────────────────────────────────────────┘  │
+└─────────────────────────────────────────────────────┘
 ```
 
-浏览器打开：`http://<这台机器IP>:8765/`
+## 安装
 
-## 保存目录
+```bash
+# 依赖：yt-dlp（已安装于 hermes venv）
+which yt-dlp  # 确认存在
 
-- X/Twitter: `~/Downloads/x-videos/`
-- YouTube: `~/Downloads/youtube-videos/`
-- B站: `~/Downloads/bilibili-videos/`
-- 其他: `~/Downloads/yt-dlp-videos/`
+# 下载项目
+cd ~/yt-dlp-web
 
-## systemd 用户服务
+# 直接运行
+./app.py --host 0.0.0.0 --port 8765
 
-已提供 `yt-dlp-web.service`，可复制到 `~/.config/systemd/user/` 后启用。
+# 或通过 systemd 后台运行（见下方）
+```
+
+浏览器打开：`http://<本机IP>:8765/`
+
+## systemd 用户服务（可选）
+
+```bash
+cp yt-dlp-web.service ~/.config/systemd/user/
+systemctl --user daemon-reload
+systemctl --user enable --now yt-dlp-web.service
+```
+
+## 下载保存目录
+
+| 平台 | 目录 |
+|------|------|
+| X / Twitter | `~/Downloads/x-videos/` |
+| YouTube | `~/Downloads/youtube-videos/` |
+| B站 | `~/Downloads/bilibili-videos/` |
+| 其他 | `~/Downloads/yt-dlp-videos/` |
+
+## 已知问题（BUGS）
+
+See [BUGS.md](./BUGS.md)
+
+## 待办（TODO）
+
+See [TODO.md](./TODO.md)
+
+## 技术栈
+
+- 纯 Python stdlib：`http.server.ThreadingHTTPServer`
+- 无外部 Web 框架依赖
+- yt-dlp subprocess 调用
+- 前端：原生 HTML + CSS + JavaScript（零依赖）
+
+## License
+
+MIT

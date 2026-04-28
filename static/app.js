@@ -112,7 +112,8 @@ $('nextHistory').onclick = () => { if (historyPage < historyTotalPages) loadHist
 async function loadJobs() {
   const res = await fetch('/api/jobs', {cache:'no-store'});
   const data = await res.json();
-  const html = (data.jobs || []).map(j => {
+  const jobs = data.jobs || [];
+  const html = jobs.map(j => {
     const cls = ['badge', j.status].join(' ');
     const files = (j.files || []).map(f => `<div>${escapeHtml(f)}</div>`).join('');
     const log = (j.log || []).slice(-80).join('\n');
@@ -132,6 +133,7 @@ async function loadJobs() {
     </div>`;
   }).join('') || '<p>暂无任务</p>';
   $('jobs').innerHTML = html;
+  return jobs;
 }
 
 function escapeHtml(s) {
@@ -223,9 +225,15 @@ async function loadHistory(page = 1, options = {}) {
 
 function startPolling() {
   if (pollTimer) clearInterval(pollTimer);
-  pollTimer = setInterval(() => {
-    loadJobs();
-    loadHistory(historyPage, {force: false});
+  pollTimer = setInterval(async () => {
+    const jobs = await loadJobs();
+    await loadHistory(historyPage, {force: false});
+    const hasActiveJob = jobs.some(j => ['queued', 'running'].includes(j.status));
+    if (!hasActiveJob) {
+      clearInterval(pollTimer);
+      pollTimer = null;
+      debugLog('stop polling because no active jobs');
+    }
   }, 2000);
 }
 

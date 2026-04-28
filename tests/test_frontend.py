@@ -26,6 +26,15 @@ def test_frontend_debug_log_helper_exists():
     assert "[yt-dlp-web]" in js
 
 
+def test_download_polling_stops_when_no_active_jobs():
+    js = APP_JS.read_text(encoding="utf-8")
+
+    assert "hasActiveJob" in js
+    assert "['queued', 'running'].includes(j.status)" in js
+    assert "stop polling because no active jobs" in js
+    assert "pollTimer = null" in js
+
+
 def test_clipboard_button_and_frontend_url_extraction_exist():
     js = APP_JS.read_text(encoding="utf-8")
     html = (APP_JS.parent / "index.html").read_text(encoding="utf-8")
