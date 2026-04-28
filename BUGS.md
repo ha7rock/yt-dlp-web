@@ -14,11 +14,11 @@
 **日期**：2026-04-28
 
 ### B-002: B站下载的视频无法在 iPad 播放/存相册
-**严重程度**：高 → 已修复默认路径  
+**严重程度**：高 → 已修复  
 **描述**：B站下载得到 `.mp4`，但 iPad 无法直接播放，也无法存入相册  
-**根因**：B站默认最优视频流可能是 HEVC/H.265 或 AV1；文件是合法 MP4，但 iPad/照片 App 对这类非苹果直出的 HEVC/AV1 兼容不稳定  
-**修复**：B站默认下载格式优先选择 AVC/H.264（`vcodec^=avc1`），找不到时才 fallback 到原默认最佳格式；用户手动选择源站格式时不覆盖  
-**验证**：`yt-dlp --simulate` 对示例 B站链接选到 `30080+30280 avc1.640032 mp4a.40.2 mp4`  
+**根因**：B站 HEVC 视频流封装为 `hev1` tag；iOS/照片 App 对 `hev1` 兼容不如 `hvc1`  
+**修复**：B站下载完成后自动检测 `.mp4` 首个视频流；仅当 `codec_name=hevc && codec_tag_string=hev1` 时执行无损 remux：`ffmpeg -i input.mp4 -c:v copy -c:a copy -tag:v hvc1 tmp.mp4`，再替换原文件  
+**影响范围**：只作用于 B站 + HEVC + hev1；X / YouTube / B站 H.264 / 已是 hvc1 的文件都不动  
 **日期**：2026-04-28
 
 ### B-003: 粘贴剪贴板在 iPad 上无效

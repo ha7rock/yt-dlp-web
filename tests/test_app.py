@@ -14,6 +14,8 @@ from app import (
     list_history,
     resolve_media_path,
     delete_history_item,
+    needs_bilibili_hvc1_remux,
+    remux_hev1_to_hvc1,
 )
 
 
@@ -81,13 +83,53 @@ def test_build_command_audio_only_extracts_mp3(monkeypatch, tmp_path):
     assert "-f" not in cmd
 
 
-def test_bilibili_default_format_prefers_h264_for_ipad_compatibility(monkeypatch, tmp_path):
+def test_bilibili_default_format_keeps_best_and_relies_on_hvc1_postprocess(monkeypatch, tmp_path):
     monkeypatch.setenv("HOME", str(tmp_path))
     cmd, _ = build_yt_dlp_command({"url": "https://www.bilibili.com/video/BV123", "format": "bv*+ba/b"})
 
-    fmt = cmd[cmd.index("-f") + 1]
-    assert fmt.startswith("bv*[vcodec^=avc1]")
-    assert "+ba/" in fmt
+    assert cmd[cmd.index("-f") + 1] == "bv*+ba/b"
+
+
+def test_bilibili_hvc1_remux_detection_only_targets_bilibili_hevc_hev1(monkeypatch, tmp_path):
+    f = tmp_path / "video.mp4"
+    f.write_text("fake")
+
+    def fake_run(*args, **kwargs):
+        class Result:
+            returncode = 0
+            stdout = '{"streams":[{"codec_name":"hevc","codec_tag_string":"hev1"}]}'
+            stderr = ""
+        return Result()
+
+    monkeypatch.setattr("app.subprocess.run", fake_run)
+
+    assert needs_bilibili_hvc1_remux("https://www.bilibili.com/video/BV123", f) is True
+    assert needs_bilibili_hvc1_remux("https://x.com/a/status/1", f) is False
+
+
+def test_remux_hev1_to_hvc1_uses_stream_copy_and_replaces_original(monkeypatch, tmp_path):
+    f = tmp_path / "video.mp4"
+    f.write_text("old")
+    calls = []
+
+    def fake_run(cmd, **kwargs):
+        calls.append(cmd)
+        Path(cmd[-1]).write_text("new")
+        class Result:
+            returncode = 0
+            stdout = ""
+            stderr = ""
+        return Result()
+
+    monkeypatch.setattr("app.subprocess.run", fake_run)
+
+    remux_hev1_to_hvc1(f)
+
+    assert f.read_text() == "new"
+    cmd = calls[0]
+    assert ["-c:v", "copy"] == cmd[cmd.index("-c:v"):cmd.index("-c:v") + 2]
+    assert ["-c:a", "copy"] == cmd[cmd.index("-c:a"):cmd.index("-c:a") + 2]
+    assert ["-tag:v", "hvc1"] == cmd[cmd.index("-tag:v"):cmd.index("-tag:v") + 2]
 
 
 def test_exact_source_format_is_not_overridden_by_quality(monkeypatch, tmp_path):

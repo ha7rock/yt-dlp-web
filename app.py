@@ -267,27 +267,12 @@ def normalize_input_url(raw: str) -> str:
     return match.group(0).rstrip(".,，。!！?？;；)）]】>")
 
 
-def _is_generic_format(base_format: str) -> bool:
-    return base_format in {"bv*+ba/b", "best", "worst"}
-
-
-def _default_video_format(url: str, base_format: str, quality: str) -> str:
+def _quality_format(base_format: str, quality: str) -> str:
     base_format = base_format or "bv*+ba/b"
-    quality = (quality or "best").strip()
-    if not is_bilibili_url(url) or base_format != "bv*+ba/b":
-        return base_format
-    height_filter = f"[height<={int(quality)}]" if quality.isdigit() else ""
-    # BiliBili often exposes HEVC/AV1 as the best MP4 video stream. Those files are
-    # valid MP4 but are not reliably accepted by iPad Photos. Prefer AVC/H.264.
-    return f"bv*[vcodec^=avc1]{height_filter}+ba/bv*{height_filter}+ba/b{height_filter}"
-
-
-def _quality_format(url: str, base_format: str, quality: str) -> str:
-    base_format = _default_video_format(url, base_format or "bv*+ba/b", quality)
     quality = (quality or "best").strip()
     # If the user chose an exact source format from yt-dlp -J, do not rewrite it.
     # Quality caps only apply to the generic best-video/best-audio presets.
-    if not _is_generic_format(base_format):
+    if base_format not in {"bv*+ba/b", "best", "worst"}:
         return base_format
     if not quality or quality == "best" or base_format in {"best", "worst"}:
         return base_format
@@ -312,7 +297,7 @@ def build_yt_dlp_command(options: dict[str, Any]) -> tuple[list[str], Path]:
     if options.get("audio_only"):
         cmd.extend(["-x", "--audio-format", str(options.get("audio_format") or "mp3")])
     else:
-        fmt = _quality_format(url, str(options.get("format") or "bv*+ba/b"), str(options.get("quality") or "best"))
+        fmt = _quality_format(str(options.get("format") or "bv*+ba/b"), str(options.get("quality") or "best"))
         if fmt:
             cmd.extend(["-f", fmt])
         merge_format = str(options.get("merge_output_format") or "").strip()
@@ -397,6 +382,68 @@ def _snapshot_files(output_dir: Path) -> set[Path]:
     return {p for p in output_dir.glob("*") if p.is_file()}
 
 
+def video_codec_tag(path: str | Path) -> tuple[str, str] | None:
+    path = Path(path)
+    if path.suffix.lower() != ".mp4":
+        return None
+    proc = subprocess.run(
+        [
+            "ffprobe", "-v", "error",
+            "-select_streams", "v:0",
+            "-show_entries", "stream=codec_name,codec_tag_string",
+            "-of", "json",
+            str(path),
+        ],
+        text=True,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        timeout=30,
+    )
+    if proc.returncode != 0:
+        return None
+    streams = json.loads(proc.stdout or "{}").get("streams") or []
+    if not streams:
+        return None
+    stream = streams[0]
+    return str(stream.get("codec_name") or ""), str(stream.get("codec_tag_string") or "")
+
+
+def needs_bilibili_hvc1_remux(url: str, path: str | Path) -> bool:
+    if not is_bilibili_url(url):
+        return False
+    tag = video_codec_tag(path)
+    return tag == ("hevc", "hev1")
+
+
+def remux_hev1_to_hvc1(path: str | Path) -> Path:
+    path = Path(path)
+    tmp = path.with_name(f".{path.stem}.hvc1{path.suffix}")
+    proc = subprocess.run(
+        ["ffmpeg", "-y", "-i", str(path), "-c:v", "copy", "-c:a", "copy", "-tag:v", "hvc1", str(tmp)],
+        text=True,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        timeout=300,
+    )
+    if proc.returncode != 0:
+        tmp.unlink(missing_ok=True)
+        raise RuntimeError(proc.stderr.strip() or "ffmpeg hvc1 remux failed")
+    tmp.replace(path)
+    return path
+
+
+def postprocess_downloaded_files(job: Job) -> None:
+    if not is_bilibili_url(job.url):
+        return
+    for file_path in list(job.files):
+        path = Path(file_path)
+        if not path.is_file():
+            continue
+        if needs_bilibili_hvc1_remux(job.url, path):
+            job.append_log(f"[postprocess] B站 HEVC hev1 → hvc1: {path.name}")
+            remux_hev1_to_hvc1(path)
+
+
 def run_job(job_id: str) -> None:
     with JOBS_LOCK:
         job = JOBS[job_id]
@@ -422,6 +469,7 @@ def run_job(job_id: str) -> None:
         job.files = [str(p) for p in new_files]
         job.status = "done" if job.returncode == 0 else "failed"
         if job.status == "done":
+            postprocess_downloaded_files(job)
             job.progress.update({"stage": "done", "percent": 100.0, "label": "完成"})
             record_history_for_job(job)
         else:
