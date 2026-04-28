@@ -29,10 +29,23 @@ def test_frontend_debug_log_helper_exists():
 def test_download_polling_stops_when_no_active_jobs():
     js = APP_JS.read_text(encoding="utf-8")
 
-    assert "hasActiveJob" in js
-    assert "['queued', 'running'].includes(j.status)" in js
+    assert "activeJobs" in js
+    assert "activeJobs.length === 0" in js
     assert "stop polling because no active jobs" in js
     assert "pollTimer = null" in js
+
+
+def test_tasks_section_only_shows_active_downloads_and_refreshes_history_on_completion():
+    js = APP_JS.read_text(encoding="utf-8")
+    html = (APP_JS.parent / "index.html").read_text(encoding="utf-8")
+
+    assert "正在下载" in html
+    assert html.index('id="refreshJobs"') > html.index('id="jobs"') - 200
+    assert "activeJobs = allJobs.filter" in js
+    assert "暂无正在下载任务" in js
+    assert "completedSinceLastPoll" in js
+    assert "refresh history because a task finished" in js
+    assert "loadHistory(1, {force: true})" in js
 
 
 def test_clipboard_button_has_ios_safari_manual_paste_fallback():

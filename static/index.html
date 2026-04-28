@@ -13,7 +13,6 @@
         <h1>yt-dlp 下载器</h1>
         <p>X / YouTube / B站 / 其他 yt-dlp 支持站点。默认保存到本机 Downloads。</p>
       </div>
-      <button id="refreshJobs" class="ghost">刷新任务</button>
     </header>
 
     <section class="card">
@@ -114,7 +113,10 @@
     </section>
 
     <section class="card">
-      <h2>任务</h2>
+      <div class="section-row">
+        <h2>正在下载</h2>
+        <button id="refreshJobs" class="ghost">刷新任务</button>
+      </div>
       <div id="jobs" class="jobs"></div>
     </section>
 

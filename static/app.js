@@ -114,8 +114,9 @@ $('nextHistory').onclick = () => { if (historyPage < historyTotalPages) loadHist
 async function loadJobs() {
   const res = await fetch('/api/jobs', {cache:'no-store'});
   const data = await res.json();
-  const jobs = data.jobs || [];
-  const html = jobs.map(j => {
+  const allJobs = data.jobs || [];
+  const activeJobs = allJobs.filter(j => ['queued', 'running'].includes(j.status));
+  const html = activeJobs.map(j => {
     const cls = ['badge', j.status].join(' ');
     const files = (j.files || []).map(f => `<div>${escapeHtml(f)}</div>`).join('');
     const log = (j.log || []).slice(-80).join('\n');
@@ -133,9 +134,9 @@ async function loadJobs() {
       ${files ? `<div class="files">新文件：${files}</div>` : ''}
       <details class="log-details"><summary>查看日志</summary><div class="log">${escapeHtml(log)}</div></details>
     </div>`;
-  }).join('') || '<p>暂无任务</p>';
+  }).join('') || '<p>暂无正在下载任务</p>';
   $('jobs').innerHTML = html;
-  return jobs;
+  return {allJobs, activeJobs};
 }
 
 function escapeHtml(s) {
@@ -227,13 +228,20 @@ async function loadHistory(page = 1, options = {}) {
 
 function startPolling() {
   if (pollTimer) clearInterval(pollTimer);
+  let previousActiveIds = new Set();
   pollTimer = setInterval(async () => {
-    const jobs = await loadJobs();
-    await loadHistory(historyPage, {force: false});
-    const hasActiveJob = jobs.some(j => ['queued', 'running'].includes(j.status));
-    if (!hasActiveJob) {
+    const {activeJobs} = await loadJobs();
+    const activeIds = new Set(activeJobs.map(j => j.id));
+    const completedSinceLastPoll = [...previousActiveIds].some(id => !activeIds.has(id));
+    if (completedSinceLastPoll) {
+      await loadHistory(1, {force: true});
+      debugLog('refresh history because a task finished');
+    }
+    previousActiveIds = activeIds;
+    if (activeJobs.length === 0) {
       clearInterval(pollTimer);
       pollTimer = null;
+      await loadHistory(1, {force: true});
       debugLog('stop polling because no active jobs');
     }
   }, 2000);
