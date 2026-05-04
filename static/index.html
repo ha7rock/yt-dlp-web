@@ -1,139 +1,661 @@
-<!doctype html>
-<html lang="zh-CN">
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="dark">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>yt-dlp 下载器</title>
-  <link rel="stylesheet" href="/style.css" />
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="referrer" content="no-referrer">
+<title>yt-dlp 下载器</title>
+<link rel="icon" href="/ytlogo.png" type="image/png">
+<link rel="apple-touch-icon" href="/ytlogo.png">
+<script>(function(){var m=localStorage.getItem('theme')||'system';var d=m==='dark'||(m==='system'&&window.matchMedia('(prefers-color-scheme:dark)').matches);document.documentElement.setAttribute('data-theme',d?'dark':'light');})()</script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+/* ── Tokens ─────────────────────────────────────────────── */
+:root {
+  --accent: oklch(68% 0.22 28);
+  --accent-dim: oklch(68% 0.22 28 / 0.15);
+  --accent-glow: oklch(68% 0.22 28 / 0.35);
+  --radius-sm: 8px;
+  --radius-md: 14px;
+  --radius-lg: 20px;
+  --radius-xl: 28px;
+  --font: 'Plus Jakarta Sans', system-ui, sans-serif;
+  --mono: 'JetBrains Mono', 'Courier New', monospace;
+  --transition: 0.18s cubic-bezier(0.4, 0, 0.2, 1);
+  --transition-spring: 0.38s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+[data-theme="dark"] {
+  --bg: #0c0c0f; --surface: #161619; --surface2: #1e1e23; --surface3: #26262d;
+  --border: rgba(255,255,255,0.08); --border-strong: rgba(255,255,255,0.14);
+  --text: #f0eeeb; --text-2: rgba(240,238,235,0.55); --text-3: rgba(240,238,235,0.32);
+  --shadow: 0 4px 32px rgba(0,0,0,0.5); --shadow-sm: 0 2px 12px rgba(0,0,0,0.3);
+}
+[data-theme="light"] {
+  --bg: #f2f0ed; --surface: #faf9f7; --surface2: #f0eeeb; --surface3: #e8e5e0;
+  --border: rgba(0,0,0,0.08); --border-strong: rgba(0,0,0,0.14);
+  --text: #18171a; --text-2: rgba(24,23,26,0.52); --text-3: rgba(24,23,26,0.32);
+  --shadow: 0 4px 32px rgba(0,0,0,0.1); --shadow-sm: 0 2px 12px rgba(0,0,0,0.06);
+}
+
+/* ── Reset ── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: var(--font); background: var(--bg); color: var(--text); min-height: 100vh;
+  transition: background var(--transition), color var(--transition); -webkit-font-smoothing: antialiased; }
+button { font-family: inherit; cursor: pointer; border: none; outline: none; }
+input, select { font-family: inherit; outline: none; border: none; background: none; }
+
+/* ── Layout ── */
+.app { max-width: 800px; margin: 0 auto; padding: 0 16px 120px; }
+
+/* ── Top Bar ── */
+.topbar { display: flex; align-items: center; justify-content: space-between;
+  padding: 20px 0 24px; position: sticky; top: 0; z-index: 100; background: var(--bg); }
+.topbar::after { content: ''; position: absolute; bottom: 0; left: -16px; right: -16px;
+  height: 1px; background: var(--border); }
+.logo { display: flex; align-items: center; gap: 10px; }
+.logo-mark { width: 32px; height: 32px; background: var(--accent); border-radius: 9px;
+  display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.logo-mark svg { width: 18px; height: 18px; fill: white; }
+.logo-text { font-size: 17px; font-weight: 700; letter-spacing: -0.3px; }
+.logo-text .logo-cn { font-size: 17px; font-weight: 700; color: var(--text); }
+.theme-toggle { width: 38px; height: 38px; border-radius: 12px; background: var(--surface2);
+  border: 1px solid var(--border); display: flex; align-items: center; justify-content: center;
+  color: var(--text-2); transition: all var(--transition); }
+.theme-toggle:hover { background: var(--surface3); color: var(--text); }
+.theme-toggle svg { width: 18px; height: 18px; }
+
+/* ── Section ── */
+.section { margin-top: 28px; animation: fadeSlideIn 0.3s ease; }
+.section-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; }
+.section-title { font-size: 13px; font-weight: 600; color: var(--text-3); text-transform: uppercase; letter-spacing: 0.8px; }
+
+/* ── URL Panel ── */
+.url-panel { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-xl);
+  padding: 20px; transition: border-color var(--transition), box-shadow var(--transition); }
+.url-panel:focus-within { border-color: var(--accent); box-shadow: 0 0 0 4px var(--accent-dim), var(--shadow); }
+.url-input-row { display: flex; align-items: center; gap: 10px; }
+.url-input-wrap { flex: 1; display: flex; align-items: center; gap: 10px; background: var(--surface2);
+  border-radius: var(--radius-md); padding: 12px 14px; transition: background var(--transition); }
+.url-input-wrap:focus-within { background: var(--surface3); }
+.url-icon { color: var(--text-3); flex-shrink: 0; }
+.url-icon svg { width: 18px; height: 18px; display: block; }
+.url-input { flex: 1; font-size: 14px; color: var(--text); background: none; caret-color: var(--accent); }
+.url-input::placeholder { color: var(--text-3); }
+.url-clear { background: none; color: var(--text-3); padding: 0; transition: color var(--transition); display: none; }
+.url-clear.visible { display: flex; }
+.url-clear:hover { color: var(--text); }
+.url-clear svg { width: 16px; height: 16px; }
+.url-paste { background: none; color: var(--text-3); padding: 0; transition: color var(--transition); display: flex; align-items: center; }
+.url-paste:hover { color: var(--accent); }
+.url-paste svg { width: 16px; height: 16px; }
+.url-paste.disabled { opacity: 0.35; cursor: not-allowed; }
+.url-paste.disabled:hover { color: var(--text-3); }
+.btn-fetch { height: 46px; padding: 0 18px; background: var(--surface3); border: 1px solid var(--border-strong);
+  border-radius: var(--radius-md); font-size: 14px; font-weight: 600; color: var(--text);
+  transition: all var(--transition); white-space: nowrap; flex-shrink: 0; }
+.btn-fetch:hover { background: var(--surface2); }
+.btn-fetch.loading { opacity: 0.6; cursor: wait; }
+.btn-download { height: 46px; padding: 0 22px; background: var(--accent); border-radius: var(--radius-md);
+  font-size: 14px; font-weight: 700; color: white; transition: all var(--transition);
+  white-space: nowrap; flex-shrink: 0; display: flex; align-items: center; gap: 7px; }
+.btn-download:hover { filter: brightness(1.1); box-shadow: 0 4px 16px var(--accent-glow); transform: translateY(-1px); }
+.btn-download:active { transform: translateY(0); }
+.btn-download svg { width: 16px; height: 16px; }
+.btn-download.loading { opacity: 0.7; cursor: wait; transform: none; }
+
+/* ── Preview Strip ── */
+.preview-strip { display: none; align-items: center; gap: 12px; margin-top: 14px;
+  padding-top: 14px; border-top: 1px solid var(--border); animation: fadeSlideIn 0.2s ease; }
+.preview-strip.visible { display: flex; }
+.preview-thumb { width: 64px; height: 36px; border-radius: 6px; background: var(--surface3);
+  flex-shrink: 0; overflow: hidden; display: flex; align-items: center; justify-content: center; color: var(--text-3); }
+.preview-thumb img { width: 100%; height: 100%; object-fit: cover; }
+.preview-info { flex: 1; min-width: 0; }
+.preview-title { font-size: 13px; font-weight: 600; color: var(--text);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.preview-meta { font-size: 12px; color: var(--text-3); margin-top: 2px; }
+
+/* ── Settings Row ── */
+.settings-row { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 14px;
+  padding-top: 14px; border-top: 1px solid var(--border); }
+.setting-group { display: flex; align-items: center; gap: 0; background: var(--surface2);
+  border: 1px solid var(--border); border-radius: 10px; overflow: hidden; height: 36px; }
+.setting-label { font-size: 12px; font-weight: 600; color: var(--text-3); padding: 0 10px 0 12px; white-space: nowrap; }
+.setting-select { font-size: 13px; font-weight: 500; color: var(--text); padding: 0 24px 0 4px; height: 100%;
+  background: none; cursor: pointer; appearance: none; -webkit-appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23888' stroke-width='2.5'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+  background-repeat: no-repeat; background-position: right 6px center; }
+.setting-divider { width: 1px; height: 20px; background: var(--border); flex-shrink: 0; }
+
+/* ── Toggle Chips ── */
+.toggle-group { display: flex; gap: 6px; flex-wrap: wrap; }
+.toggle-chip { height: 36px; padding: 0 14px; background: var(--surface2); border: 1px solid var(--border);
+  border-radius: 10px; font-size: 12.5px; font-weight: 500; color: var(--text-2);
+  transition: all var(--transition); display: flex; align-items: center; gap: 6px;
+  cursor: pointer; user-select: none; }
+.toggle-chip input { display: none; }
+.toggle-chip:hover { color: var(--text); border-color: var(--border-strong); }
+.toggle-chip.on { color: var(--accent); background: var(--accent-dim); border-color: oklch(68% 0.22 28 / 0.3); }
+.toggle-chip .chip-dot { width: 6px; height: 6px; border-radius: 50%; background: currentColor; opacity: 0.5; }
+.toggle-chip.on .chip-dot { opacity: 1; }
+.toggle-chip.disabled { opacity: 0.4; pointer-events: none; }
+
+/* ── Advanced Panel ── */
+.adv-toggle { height: 36px; padding: 0 14px; background: none; border: 1px solid var(--border);
+  border-radius: 10px; font-size: 12.5px; font-weight: 500; color: var(--text-3);
+  transition: all var(--transition); display: flex; align-items: center; gap: 6px; }
+.adv-toggle:hover { color: var(--text); border-color: var(--border-strong); }
+.adv-toggle .arrow { transition: transform 0.2s ease; }
+.adv-toggle.open .arrow { transform: rotate(180deg); }
+.adv-panel { display: none; margin-top: 12px; padding: 0; background: transparent;
+  border-radius: var(--radius-md); gap: 10px; flex-direction: column; animation: fadeSlideIn 0.15s ease; }
+.adv-panel.open { display: flex; }
+.adv-group { background: var(--surface2); border: 1px solid var(--border); border-radius: var(--radius-md);
+  padding: 12px 14px; display: flex; flex-direction: column; gap: 10px; }
+.adv-group-title { font-size: 11px; font-weight: 700; color: var(--text-3);
+  text-transform: uppercase; letter-spacing: 0.8px; }
+.adv-group-row { display: flex; flex-wrap: wrap; gap: 6px; }
+.adv-chip { height: 30px; padding: 0 10px; font-size: 12px; }
+.adv-field { display: flex; align-items: center; gap: 10px; }
+.adv-field-row { display: flex; gap: 10px; flex-wrap: wrap; }
+.adv-field-row .adv-field { flex: 1; min-width: 140px; }
+.adv-label-line { font-size: 12.5px; color: var(--text-2); flex-shrink: 0; min-width: 60px; }
+.adv-input { font-size: 13px; font-family: var(--mono); color: var(--text); background: var(--surface3);
+  border: 1px solid var(--border); border-radius: 8px; padding: 7px 12px; width: 200px;
+  transition: border-color var(--transition); }
+.adv-input:focus { border-color: var(--accent); }
+.adv-input-flex { flex: 1; min-width: 0; width: auto; }
+.adv-help { font-size: 11.5px; color: var(--text-3); line-height: 1.55; margin: 0; }
+.adv-help code { font-family: var(--mono); background: var(--surface3); padding: 1px 5px; border-radius: 4px;
+  font-size: 11px; color: var(--text-2); }
+.adv-help.warn { color: oklch(72% 0.15 70); }
+.adv-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.adv-label { font-size: 13px; color: var(--text-2); }
+
+/* ── Formats Select (from probe) ── */
+.formats-row { margin-top: 12px; animation: fadeSlideIn 0.2s ease; }
+.formats-select { width: 100%; font-size: 13px; font-family: var(--mono); color: var(--text);
+  background: var(--surface3); border: 1px solid var(--border); border-radius: 10px;
+  padding: 9px 12px; cursor: pointer; }
+.formats-select:focus { border-color: var(--accent); outline: none; }
+
+/* ── Active Downloads ── */
+.dl-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg);
+  padding: 16px 18px; display: flex; flex-direction: column; gap: 12px;
+  transition: border-color var(--transition); animation: fadeSlideIn 0.25s ease; }
+.dl-card + .dl-card { margin-top: 8px; }
+.dl-card-top { display: flex; align-items: flex-start; gap: 12px; }
+.dl-card-thumb { width: 80px; height: 48px; border-radius: 8px; object-fit: cover;
+  flex-shrink: 0; background: var(--surface3); display: block; }
+.dl-card-info { flex: 1; min-width: 0; }
+.dl-card-title { font-size: 13.5px; font-weight: 600; color: var(--text); line-height: 1.4;
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.dl-card-meta { display: flex; gap: 10px; margin-top: 4px; flex-wrap: wrap; }
+.dl-meta-tag { font-size: 11.5px; color: var(--text-3); font-family: var(--mono); }
+.dl-badge { font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 6px; font-family: var(--mono); }
+.dl-badge.running { color: var(--accent); background: var(--accent-dim); }
+.dl-badge.queued { color: var(--text-3); background: var(--surface3); }
+.dl-badge.done { color: #22c55e; background: rgba(34,197,94,0.1); }
+.dl-badge.failed { color: #ef4444; background: rgba(239,68,68,0.08); }
+.dl-cancel { background: none; color: var(--text-3); padding: 4px 8px; border-radius: 8px;
+  font-size: 12px; font-weight: 500; border: 1px solid var(--border); transition: all var(--transition); white-space: nowrap; }
+.dl-cancel:hover { color: #ef4444; border-color: rgba(239,68,68,0.4); background: rgba(239,68,68,0.08); }
+.dl-log { display: none; }
+.dl-log.open { display: block; font-size: 11.5px; font-family: var(--mono); color: var(--text-3);
+  background: var(--surface3); border-radius: 8px; padding: 10px 12px; max-height: 120px;
+  overflow-y: auto; white-space: pre-wrap; word-break: break-all; line-height: 1.6; }
+.dl-log-toggle { font-size: 11.5px; color: var(--text-3); background: none; border: none;
+  cursor: pointer; transition: color var(--transition); padding: 0; }
+.dl-log-toggle:hover { color: var(--text-2); }
+
+/* ── Progress ── */
+.dl-progress-area { display: flex; flex-direction: column; gap: 6px; }
+.dl-progress-bar-wrap { height: 4px; background: var(--surface3); border-radius: 99px; overflow: hidden; }
+.dl-progress-bar { height: 100%; background: var(--accent); border-radius: 99px;
+  transition: width 1.4s linear; position: relative; overflow: hidden; min-width: 4px; }
+.dl-progress-bar::after { content: ''; position: absolute; inset: 0;
+  background: linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.35) 50%, transparent 100%);
+  animation: shimmer 1.5s infinite; }
+.dl-progress-bar.done { background: #22c55e; }
+.dl-progress-bar.done::after { display: none; }
+.dl-progress-bar.failed { background: #ef4444; }
+.dl-progress-bar.failed::after { display: none; }
+.dl-progress-info { display: flex; justify-content: space-between; align-items: center; }
+.dl-progress-pct { font-size: 12px; font-weight: 600; color: var(--accent); font-family: var(--mono); }
+.dl-progress-pct.done { color: #22c55e; }
+.dl-progress-pct.failed { color: #ef4444; }
+.dl-progress-speed { font-size: 11.5px; color: var(--text-3); font-family: var(--mono); }
+
+/* ── Empty State ── */
+.empty-state { display: flex; flex-direction: column; align-items: center; justify-content: center;
+  padding: 32px; background: var(--surface); border: 1px dashed var(--border-strong);
+  border-radius: var(--radius-lg); color: var(--text-3); gap: 8px; text-align: center; }
+.empty-state svg { opacity: 0.4; }
+.empty-state p { font-size: 13px; }
+
+/* ── History ── */
+.history-controls { display: flex; gap: 8px; align-items: center; margin-bottom: 12px; }
+.search-wrap { flex: 1; display: flex; align-items: center; gap: 8px; background: var(--surface2);
+  border: 1px solid var(--border); border-radius: 10px; padding: 0 12px; height: 36px; transition: border-color var(--transition); }
+.search-wrap:focus-within { border-color: var(--border-strong); }
+.search-wrap svg { width: 14px; height: 14px; color: var(--text-3); flex-shrink: 0; }
+.search-input { font-size: 13px; color: var(--text); flex: 1; }
+.search-input::placeholder { color: var(--text-3); }
+.btn-clear-history { height: 36px; padding: 0 14px; background: none; border: 1px solid var(--border);
+  border-radius: 10px; font-size: 12.5px; font-weight: 500; color: var(--text-3); transition: all var(--transition); white-space: nowrap; }
+.btn-clear-history:hover { color: #ef4444; border-color: rgba(239,68,68,0.4); }
+
+/* ── History List ── */
+.history-list { display: flex; flex-direction: column; gap: 6px; }
+.hist-item { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-md);
+  padding: 14px 16px; display: flex; gap: 12px; align-items: flex-start; transition: all var(--transition); }
+.hist-item:hover { border-color: var(--border-strong); background: var(--surface2); }
+.hist-thumb { width: 72px; height: 54px; align-self: flex-start; border-radius: 8px;
+  background: var(--surface3); flex-shrink: 0; display: flex; align-items: center; justify-content: center;
+  color: var(--text-3); overflow: hidden; cursor: pointer; position: relative; transition: all var(--transition); }
+.hist-thumb:hover .hist-thumb-inner { opacity: 0.7; }
+.hist-thumb:hover .hist-play-btn { opacity: 1; transform: scale(1); }
+.hist-thumb-inner { width: 100%; height: 100%; background: linear-gradient(135deg, var(--surface3), var(--surface2));
+  display: flex; align-items: center; justify-content: center; transition: opacity var(--transition); }
+.hist-play-btn { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
+  opacity: 0; transform: scale(0.8); transition: all var(--transition-spring); pointer-events: none; }
+.hist-play-btn svg { width: 22px; height: 22px; fill: white; filter: drop-shadow(0 2px 6px rgba(0,0,0,0.5)); }
+@media (hover: none) {
+  .hist-play-btn { opacity: 1; transform: scale(0.85); background: linear-gradient(180deg, transparent 30%, rgba(0,0,0,0.45)); }
+  .hist-play-btn svg { width: 18px; height: 18px; }
+}
+.hist-body { flex: 1; min-width: 0; }
+.hist-title { font-size: 13.5px; font-weight: 600; color: var(--text); line-height: 1.4;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-bottom: 4px; }
+.hist-filename { font-size: 11.5px; font-family: var(--mono); color: var(--text-3);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-bottom: 6px; }
+.hist-tags { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
+.hist-tag { font-size: 11px; font-weight: 500; padding: 2px 8px; border-radius: 6px;
+  background: var(--surface3); color: var(--text-2); font-family: var(--mono); }
+.hist-tag.size { color: var(--text-3); background: none; padding-left: 0; }
+.hist-tag.date { color: var(--text-3); background: none; }
+.hist-url-row { display: none; margin-top: 8px; padding-top: 8px; border-top: 1px solid var(--border); }
+.hist-url { font-size: 11.5px; font-family: var(--mono); color: var(--accent); word-break: break-all; }
+.hist-item.expanded .hist-url-row { display: block; }
+
+/* ── More Menu ── */
+.hist-actions { flex-shrink: 0; }
+.hist-more-wrap { position: relative; }
+.hist-more-menu { position: absolute; top: calc(100% + 6px); right: 0; background: var(--surface);
+  border: 1px solid var(--border-strong); border-radius: var(--radius-md); box-shadow: var(--shadow);
+  min-width: 148px; padding: 5px; z-index: 200; display: none; flex-direction: column; gap: 1px;
+  animation: fadeSlideIn 0.15s ease; }
+.hist-more-menu.open { display: flex; }
+.more-item { display: flex; align-items: center; gap: 9px; padding: 8px 10px; border-radius: 9px;
+  font-size: 13px; font-weight: 500; color: var(--text-2); background: none; text-align: left;
+  transition: all var(--transition); font-family: var(--font); cursor: pointer; border: none; width: 100%; }
+.more-item svg { width: 14px; height: 14px; flex-shrink: 0; color: var(--text-3); }
+.more-item:hover { background: var(--surface2); color: var(--text); }
+.more-item:hover svg { color: var(--text-2); }
+.more-item.danger { color: #ef4444; }
+.more-item.danger svg { color: #ef4444; }
+.more-item.danger:hover { background: rgba(239,68,68,0.08); }
+.more-divider { height: 1px; background: var(--border); margin: 3px 0; }
+.hist-action { width: 32px; height: 32px; border-radius: 9px; background: var(--surface2);
+  border: 1px solid var(--border); display: flex; align-items: center; justify-content: center;
+  color: var(--text-3); transition: all var(--transition); }
+.hist-action:hover { color: var(--text); border-color: var(--border-strong); }
+.hist-action svg { width: 14px; height: 14px; }
+
+/* ── Pagination ── */
+.pagination { display: flex; align-items: center; justify-content: center; gap: 6px;
+  margin-top: 20px; padding-top: 20px; border-top: 1px solid var(--border); }
+.page-btn { height: 34px; padding: 0 14px; background: var(--surface2); border: 1px solid var(--border);
+  border-radius: 9px; font-size: 13px; font-weight: 500; color: var(--text-2); transition: all var(--transition); }
+.page-btn:hover:not(:disabled) { color: var(--text); border-color: var(--border-strong); }
+.page-btn:disabled { opacity: 0.35; cursor: not-allowed; }
+.page-btn.active { background: var(--accent-dim); border-color: oklch(68% 0.22 28 / 0.3); color: var(--accent); font-weight: 700; }
+.page-info { font-size: 13px; color: var(--text-3); padding: 0 8px; }
+
+/* ── Player Modal ── */
+.player-modal { position: fixed; inset: 0; background: rgba(0,0,0,0.6); backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px); z-index: 500; display: flex; align-items: center; justify-content: center;
+  padding: 16px; opacity: 0; pointer-events: none; transition: opacity 0.2s ease; }
+.player-modal.open { opacity: 1; pointer-events: all; }
+.player-dialog { background: var(--surface); border: 1px solid var(--border-strong); border-radius: var(--radius-xl);
+  padding: 24px; width: 100%; max-width: 500px; box-shadow: var(--shadow);
+  transform: translateY(12px) scale(0.97); transition: transform 0.25s cubic-bezier(0.34,1.56,0.64,1), opacity 0.2s ease;
+  opacity: 0; display: flex; flex-direction: column; gap: 16px; }
+.player-modal.open .player-dialog { transform: translateY(0) scale(1); opacity: 1; }
+.player-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+.player-title { font-size: 15px; font-weight: 700; color: var(--text); line-height: 1.4; flex: 1; }
+.player-close { width: 30px; height: 30px; flex-shrink: 0; background: var(--surface2); border: 1px solid var(--border);
+  border-radius: 9px; display: flex; align-items: center; justify-content: center;
+  color: var(--text-3); transition: all var(--transition); }
+.player-close:hover { color: var(--text); border-color: var(--border-strong); }
+.player-close svg { width: 14px; height: 14px; }
+.player-meta { font-size: 12.5px; color: var(--text-3); font-family: var(--mono); display: flex; gap: 12px; flex-wrap: wrap; }
+.player-thumb-wrap { border-radius: var(--radius-md); overflow: hidden; background: #000;
+  border: 1px solid var(--border); width: 100%; aspect-ratio: 16/9; }
+.player-thumb-wrap video { width: 100%; height: 100%; object-fit: contain; display: block; }
+.player-thumb-bg { width: 100%; height: 100%; background: linear-gradient(135deg, var(--surface3), var(--surface2));
+  display: flex; align-items: center; justify-content: center; }
+.player-actions { display: flex; gap: 8px; }
+.player-btn { flex: 1; height: 42px; border-radius: var(--radius-md); font-size: 13.5px; font-weight: 600;
+  display: flex; align-items: center; justify-content: center; gap: 7px; transition: all var(--transition);
+  border: 1px solid var(--border-strong); background: var(--surface2); color: var(--text-2); }
+.player-btn svg { width: 15px; height: 15px; flex-shrink: 0; }
+.player-btn:hover { background: var(--surface3); color: var(--text); }
+.player-btn.primary { background: var(--accent); border-color: transparent; color: white; }
+.player-btn.primary:hover { filter: brightness(1.1); box-shadow: 0 4px 16px var(--accent-glow); }
+.player-path { font-size: 11.5px; font-family: var(--mono); color: var(--text-3); word-break: break-all;
+  padding: 10px 12px; background: var(--surface2); border-radius: 9px; border: 1px solid var(--border); line-height: 1.6; }
+
+/* ── Toast ── */
+.toast-wrap { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%); z-index: 999;
+  display: flex; flex-direction: column; align-items: center; gap: 8px; pointer-events: none; }
+.toast { background: var(--surface); border: 1px solid var(--border-strong); border-radius: 12px;
+  padding: 10px 18px; font-size: 13px; font-weight: 500; color: var(--text); box-shadow: var(--shadow);
+  animation: toastIn 0.25s cubic-bezier(0.34, 1.56, 0.64, 1); white-space: nowrap; }
+.toast.success { color: #22c55e; border-color: rgba(34,197,94,0.3); background: rgba(34,197,94,0.08); }
+.toast.error { color: #ef4444; border-color: rgba(239,68,68,0.3); background: rgba(239,68,68,0.08); }
+
+/* ── Animations ── */
+@keyframes shimmer { from { transform: translateX(-100%); } to { transform: translateX(200%); } }
+@keyframes fadeSlideIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
+@keyframes toastIn { from { opacity: 0; transform: translateY(12px) scale(0.95); } to { opacity: 1; transform: translateY(0) scale(1); } }
+
+/* ── Responsive ── */
+@media (max-width: 600px) {
+  .topbar { padding: 14px 0 18px; }
+  .url-input-row { flex-wrap: wrap; }
+  .btn-fetch { flex: 1; justify-content: center; }
+  .btn-download { flex: 1; justify-content: center; }
+  .settings-row { gap: 6px; }
+  .hist-item { gap: 10px; }
+  .hist-thumb { width: 56px; height: 42px; }
+  .hist-actions { align-self: flex-start; }
+  .pagination { gap: 4px; }
+  .page-btn { height: 32px; padding: 0 10px; font-size: 12px; }
+  .adv-input { width: 140px; }
+}
+@media (max-width: 400px) {
+  .history-controls { flex-wrap: wrap; }
+  .btn-clear-history { width: 100%; }
+}
+</style>
 </head>
 <body>
-  <main class="wrap">
-    <header>
-      <div>
-        <h1>yt-dlp 下载器</h1>
-        <p>X / YouTube / B站 / 其他 yt-dlp 支持站点。默认保存到本机 Downloads。</p>
-      </div>
-    </header>
+<div class="app">
 
-    <section class="card">
-      <label class="label" for="url">视频链接</label>
-      <div class="url-row">
-        <input id="url" type="url" placeholder="可直接粘贴 App 分享文案，例如：【标题】 https://b23.tv/..." />
-        <button id="pasteClipboard" class="secondary">粘贴剪切板</button>
-        <button id="probe">读取格式</button>
+  <!-- Top Bar -->
+  <header class="topbar">
+    <div class="logo">
+      <div class="logo-mark" style="background:none;padding:0">
+        <img src="/ytlogo.png" alt="" style="width:32px;height:32px;border-radius:9px;object-fit:cover;display:block">
       </div>
-      <p class="hint">X 保存到 <code>~/Downloads/x-videos/</code>，YouTube 到 <code>youtube-videos/</code>，B站到 <code>bilibili-videos/</code>。</p>
-      <div id="info" class="info hidden"></div>
-    </section>
+      <span class="logo-text">yt-dlp <span class="logo-cn">下载器</span></span>
+    </div>
+    <div class="topbar-right">
+      <button class="theme-toggle" id="themeToggle" title="切换主题" aria-label="切换日夜模式">
+        <svg id="iconMoon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+        </svg>
+        <svg id="iconSun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:none">
+          <circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/>
+          <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/>
+          <line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/>
+          <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>
+        </svg>
+        <svg id="iconAuto" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:none">
+          <rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/>
+        </svg>
+      </button>
+    </div>
+  </header>
 
-    <section class="grid">
-      <div class="card">
-        <h2>视频设置</h2>
-        <label><input id="audioOnly" type="checkbox" /> 只下载音频</label>
-        <div class="two">
-          <label>清晰度
-            <select id="quality">
-              <option value="best">最佳</option>
-              <option value="2160">4K / 2160p 以下</option>
-              <option value="1440">1440p 以下</option>
-              <option value="1080">1080p 以下</option>
-              <option value="720">720p 以下</option>
-              <option value="480">480p 以下</option>
-              <option value="360">360p 以下</option>
-            </select>
-          </label>
-          <label>合并格式
-            <select id="mergeOutputFormat">
-              <option value="mp4">mp4</option>
-              <option value="mkv">mkv</option>
-              <option value="webm">webm</option>
-              <option value="">yt-dlp 默认</option>
-            </select>
-          </label>
+  <!-- URL Input Panel -->
+  <section class="section">
+    <div class="url-panel">
+      <div class="url-input-row">
+        <div class="url-input-wrap">
+          <span class="url-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/>
+              <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/>
+            </svg>
+          </span>
+          <input class="url-input" id="url" type="text" placeholder="粘贴视频链接… YouTube、B站、Twitter、TikTok 等均支持" autocomplete="off" spellcheck="false">
+          <button class="url-clear" id="urlClear" aria-label="清空">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+          </button>
+          <button class="url-paste" id="urlPaste" aria-label="粘贴剪贴板" title="粘贴剪贴板视频链接">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="8" y="2" width="8" height="4" rx="1" ry="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/></svg>
+          </button>
         </div>
-        <label>格式选择
-          <select id="format">
-            <option value="bv*+ba/b">最佳视频+最佳音频</option>
-            <option value="best">单文件最佳</option>
-            <option value="worst">最小/最低清晰度</option>
+        <button class="btn-fetch" id="probe">解析</button>
+        <button class="btn-download" id="download">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>
+          </svg>
+          下载
+        </button>
+      </div>
+
+      <!-- Preview Strip -->
+      <div class="preview-strip" id="previewStrip">
+        <div class="preview-thumb" id="previewThumb">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+        </div>
+        <div class="preview-info">
+          <div class="preview-title" id="previewTitle">—</div>
+          <div class="preview-meta" id="previewMeta">—</div>
+        </div>
+      </div>
+
+      <!-- Settings Row -->
+      <div class="settings-row">
+        <div class="setting-group">
+          <span class="setting-label">画质</span>
+          <div class="setting-divider"></div>
+          <select class="setting-select" id="quality">
+            <option value="best">最佳</option>
+            <option value="2160">4K</option>
+            <option value="1080">1080p</option>
+            <option value="720">720p</option>
+            <option value="480">480p</option>
+            <option value="360">360p</option>
           </select>
-        </label>
-        <label><input id="iosCompatible" type="checkbox" disabled /> iOS 兼容（仅 YouTube：筛选 MP4/AAC，可能牺牲 HDR）</label>
-        <label>音频格式
-          <select id="audioFormat">
+        </div>
+        <div class="setting-group">
+          <span class="setting-label">合并</span>
+          <div class="setting-divider"></div>
+          <select class="setting-select" id="mergeOutputFormat">
+            <option value="mp4">mp4</option>
+            <option value="mkv">mkv</option>
+            <option value="webm">webm</option>
+            <option value="">默认</option>
+          </select>
+        </div>
+        <div class="setting-group">
+          <span class="setting-label">音频</span>
+          <div class="setting-divider"></div>
+          <select class="setting-select" id="audioFormat">
             <option value="mp3">mp3</option>
             <option value="m4a">m4a</option>
             <option value="opus">opus</option>
             <option value="wav">wav</option>
           </select>
-        </label>
-      </div>
-
-      <div class="card">
-        <h2>字幕 / 元数据</h2>
-        <label><input id="writeSubs" type="checkbox" /> 下载人工字幕</label>
-        <label><input id="writeAutoSubs" type="checkbox" /> 下载自动字幕</label>
-        <label><input id="embedSubs" type="checkbox" /> 嵌入字幕</label>
-        <label>字幕语言
-          <input id="subLangs" placeholder="zh-Hans,en 或 all" />
-        </label>
-        <label><input id="embedMetadata" type="checkbox" checked /> 嵌入元数据</label>
-        <label><input id="writeThumbnail" type="checkbox" /> 下载封面</label>
-        <label><input id="embedThumbnail" type="checkbox" /> 嵌入封面</label>
-      </div>
-
-      <div class="card">
-        <h2>其他 yt-dlp 设置</h2>
-        <label><input id="playlist" type="checkbox" /> 下载播放列表</label>
-        <label><input id="cookiesFromBrowser" type="checkbox" /> 使用浏览器 Cookies</label>
-        <label>浏览器
-          <select id="browser">
-            <option value="chrome">chrome</option>
-            <option value="chromium">chromium</option>
-            <option value="firefox">firefox</option>
-            <option value="edge">edge</option>
-          </select>
-        </label>
-        <div class="two">
-          <label>限速
-            <input id="rateLimit" placeholder="2M / 500K" />
+        </div>
+        <div class="toggle-group">
+          <label class="toggle-chip" id="chipAudioOnly">
+            <input type="checkbox" id="audioOnly">
+            <span class="chip-dot"></span>
+            仅音频
           </label>
-          <label>重试次数
-            <input id="retries" placeholder="10" />
+          <label class="toggle-chip disabled" id="chipIOS">
+            <input type="checkbox" id="iosCompatible" disabled>
+            <span class="chip-dot"></span>
+            iOS 兼容
+          </label>
+          <label class="toggle-chip" id="chipPlaylist">
+            <input type="checkbox" id="playlist">
+            <span class="chip-dot"></span>
+            播放列表
           </label>
         </div>
-        <label>高级参数（直接追加给 yt-dlp）
-          <input id="extraArgs" placeholder="--no-mtime --restrict-filenames" />
-        </label>
+        <button class="adv-toggle" id="advToggle">
+          高级
+          <svg class="arrow" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M6 9l6 6 6-6"/></svg>
+        </button>
       </div>
-    </section>
 
-    <section class="actions">
-      <button id="download" class="primary">开始下载</button>
-      <span id="status"></span>
-    </section>
+      <!-- Advanced Panel -->
+      <div class="adv-panel" id="advPanel">
 
-    <section class="card">
-      <div class="section-row">
-        <h2>正在下载</h2>
-        <button id="refreshJobs" class="ghost">刷新任务</button>
-      </div>
-      <div id="jobs" class="jobs"></div>
-    </section>
+        <!-- 字幕 -->
+        <div class="adv-group">
+          <div class="adv-group-title">字幕</div>
+          <div class="adv-group-row">
+            <label class="toggle-chip adv-chip" id="chipSubs">
+              <input type="checkbox" id="writeSubs"><span class="chip-dot"></span>下载字幕
+            </label>
+            <label class="toggle-chip adv-chip" id="chipAutoSubs">
+              <input type="checkbox" id="writeAutoSubs"><span class="chip-dot"></span>包含自动生成
+            </label>
+            <label class="toggle-chip adv-chip" id="chipEmbedSubs">
+              <input type="checkbox" id="embedSubs"><span class="chip-dot"></span>烧进视频
+            </label>
+          </div>
+          <div class="adv-field">
+            <span class="adv-label-line">语言</span>
+            <input class="adv-input adv-input-flex" id="subLangs" type="text" placeholder="zh-Hans,en 或 all">
+          </div>
+          <p class="adv-help">「包含自动生成」适用于 YouTube 自动字幕。「烧进视频」会把字幕嵌入视频流，仅 mp4/mkv 容器支持。</p>
+        </div>
 
-    <section class="card history-card">
-      <div class="section-row">
-        <h2>历史下载</h2>
-        <button id="refreshHistory" class="ghost">刷新历史</button>
+        <!-- 视频元信息 -->
+        <div class="adv-group">
+          <div class="adv-group-title">视频元信息</div>
+          <div class="adv-group-row">
+            <label class="toggle-chip adv-chip" id="chipMeta">
+              <input type="checkbox" id="embedMetadata" checked><span class="chip-dot"></span>写入元数据
+            </label>
+            <label class="toggle-chip adv-chip" id="chipThumb">
+              <input type="checkbox" id="embedThumbnail"><span class="chip-dot"></span>嵌入封面
+            </label>
+          </div>
+          <p class="adv-help">把作者、上传日期、原始链接、封面图打包进视频文件，方便归档和媒体库识别。</p>
+        </div>
+
+        <!-- 网络与登录 -->
+        <div class="adv-group">
+          <div class="adv-group-title">网络与登录</div>
+          <div class="adv-group-row">
+            <label class="toggle-chip adv-chip" id="chipCookies">
+              <input type="checkbox" id="cookiesFromBrowser"><span class="chip-dot"></span>使用 Chrome Cookie
+            </label>
+          </div>
+          <div class="adv-field-row">
+            <div class="adv-field">
+              <span class="adv-label-line">限速</span>
+              <input class="adv-input adv-input-flex" id="rateLimit" type="text" placeholder="2M / 500K">
+            </div>
+            <div class="adv-field">
+              <span class="adv-label-line">重试次数</span>
+              <input class="adv-input adv-input-flex" id="retries" type="text" placeholder="10">
+            </div>
+          </div>
+          <p class="adv-help">下载需登录或会员视频时勾选 Cookie。限速例：<code>500K</code>=每秒 500KB，<code>2M</code>=每秒 2MB。</p>
+        </div>
+
+        <!-- 格式与原生参数 -->
+        <div class="adv-group">
+          <div class="adv-group-title">格式与原生参数</div>
+          <div class="formats-row" id="formatsRow" style="display:none;">
+            <div class="adv-field">
+              <span class="adv-label-line">格式</span>
+              <select class="formats-select adv-input-flex" id="format">
+                <option value="bv*+ba/b">最佳视频 + 最佳音频</option>
+                <option value="best">单文件最佳</option>
+                <option value="worst">最小文件</option>
+              </select>
+            </div>
+          </div>
+          <p class="adv-help" id="formatsHint">先点上方「解析」可在这里挑选具体清晰度／编码组合。</p>
+          <div class="adv-field">
+            <span class="adv-label-line">额外参数</span>
+            <input class="adv-input adv-input-flex" id="extraArgs" type="text" placeholder="--no-mtime --hls-prefer-ffmpeg">
+          </div>
+          <p class="adv-help warn">⚠ 直接拼给 yt-dlp 命令行，参数错误会导致下载失败，请按 yt-dlp 文档填写。</p>
+        </div>
+
       </div>
-      <div id="history" class="history"></div>
-      <div class="pager">
-        <button id="prevHistory" class="ghost">上一页</button>
-        <span id="historyPage">第 1 页</span>
-        <button id="nextHistory" class="ghost">下一页</button>
+    </div>
+  </section>
+
+  <!-- Active Downloads -->
+  <section class="section" id="activeSec">
+    <div class="section-header">
+      <span class="section-title">正在下载</span>
+    </div>
+    <div id="activeList">
+      <div class="empty-state">
+        <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="10"/><path d="M8 12l3 3 5-5"/></svg>
+        <p>暂无进行中的下载</p>
       </div>
-    </section>
-  </main>
-  <script src="/app.js"></script>
+    </div>
+  </section>
+
+  <!-- History -->
+  <section class="section" id="historySec">
+    <div class="section-header">
+      <span class="section-title">历史下载</span>
+    </div>
+    <div class="history-controls">
+      <div class="search-wrap">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        <input class="search-input" id="searchInput" placeholder="搜索文件名…">
+      </div>
+    </div>
+    <div class="history-list" id="historyList">
+      <div class="empty-state">
+        <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+        <p>暂无历史下载</p>
+      </div>
+    </div>
+    <div class="pagination" id="pagination"></div>
+  </section>
+</div>
+
+<!-- Player Modal -->
+<div class="player-modal" id="playerModal" onclick="closePlayerOverlay(event)">
+  <div class="player-dialog">
+    <div class="player-header">
+      <div class="player-title" id="playerTitle"></div>
+      <button class="player-close" onclick="closePlayerBtn()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+    </div>
+    <div class="player-meta" id="playerMeta"></div>
+    <div class="player-thumb-wrap" id="playerThumbWrap">
+      <video id="playerVideo" controls playsinline style="display:none;"></video>
+      <div class="player-thumb-bg" id="playerThumbBg">
+        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1" opacity="0.15"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+      </div>
+    </div>
+    <div class="player-actions">
+      <button class="player-btn primary" id="playerOpenBtn">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+        播放
+      </button>
+      <button class="player-btn" id="playerDownloadBtn">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+        下载到本机
+      </button>
+    </div>
+    <div class="player-path" id="playerPath"></div>
+  </div>
+</div>
+
+<div class="toast-wrap" id="toastWrap"></div>
+
+<script src="/app.js"></script>
 </body>
 </html>

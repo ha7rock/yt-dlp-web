@@ -16,7 +16,18 @@ from app import (
     delete_history_item,
     needs_bilibili_hvc1_remux,
     remux_hev1_to_hvc1,
+    info_payload_from_yt_dlp,
 )
+
+
+def test_flask_app_disables_static_cache_for_ios_safari():
+    from app import app
+
+    with app.test_client() as client:
+        res = client.get("/app.js")
+    assert "no-store" in res.headers["Cache-Control"]
+    assert res.headers["Pragma"] == "no-cache"
+    assert res.headers["Expires"] == "0"
 
 
 def test_classify_url_routes_known_sites_to_expected_download_folders(monkeypatch, tmp_path):
@@ -55,7 +66,7 @@ def test_build_command_uses_selected_format_quality_and_output_folder(monkeypatc
     })
 
     assert output_dir == tmp_path / "Downloads" / "youtube-videos"
-    assert cmd[:2] == ["yt-dlp", "https://www.youtube.com/watch?v=abc"]
+    assert cmd[:3] == ["yt-dlp", "https://www.youtube.com/watch?v=abc", "--newline"]
     assert "-f" in cmd
     assert "bv*[height<=1080]+ba/b[height<=1080]" in cmd
     assert "--merge-output-format" in cmd
@@ -67,6 +78,14 @@ def test_build_command_uses_selected_format_quality_and_output_folder(monkeypatc
     assert "--no-mtime" in cmd
     assert "--restrict-filenames" in cmd
     assert any(str(output_dir) in part for part in cmd)
+
+
+def test_build_command_uses_newline_for_realtime_progress(monkeypatch, tmp_path):
+    monkeypatch.setenv("HOME", str(tmp_path))
+    cmd, _ = build_yt_dlp_command({"url": "https://x.com/a/status/1"})
+
+    assert "--newline" in cmd
+    assert cmd.index("--newline") < cmd.index("-P")
 
 
 def test_build_command_audio_only_extracts_mp3(monkeypatch, tmp_path):
@@ -270,3 +289,41 @@ def test_delete_history_item_removes_file_and_marks_item_deleted(monkeypatch, tm
     assert result["deleted"] is True
     assert not f.exists()
     assert list_history(page=1, per_page=10)["total"] == 0
+
+
+def test_info_payload_keeps_thumbnail_for_download_history():
+    payload = info_payload_from_yt_dlp({
+        "title": "B站视频",
+        "thumbnail": "https://i0.hdslb.com/bfs/archive/cover.jpg",
+        "uploader": "up主",
+        "filesize_approx": 1024,
+    })
+
+    assert payload["title"] == "B站视频"
+    assert payload["thumbnail_url"] == "https://i0.hdslb.com/bfs/archive/cover.jpg"
+    assert payload["thumbnail"] == payload["thumbnail_url"]
+    assert payload["uploader"] == "up主"
+
+
+def test_download_endpoint_backfills_title_thumbnail_when_user_skips_probe(monkeypatch, tmp_path):
+    from app import app, JOBS, JOBS_LOCK
+
+    monkeypatch.setenv("HOME", str(tmp_path))
+    monkeypatch.setattr("app.safe_probe_formats", lambda url: {
+        "title": "直接下载也有封面",
+        "thumbnail_url": "https://example.com/cover.jpg",
+        "uploader": "tester",
+    })
+    monkeypatch.setattr("app.threading.Thread", lambda *args, **kwargs: type("T", (), {"start": lambda self: None})())
+    with JOBS_LOCK:
+        JOBS.clear()
+
+    with app.test_client() as client:
+        res = client.post("/api/download", json={"url": "https://www.bilibili.com/video/BV123"})
+
+    assert res.status_code == 202
+    data = res.get_json()
+    job = data["job"]
+    assert job["title"] == "直接下载也有封面"
+    assert job["thumbnail_url"] == "https://example.com/cover.jpg"
+    assert job["uploader"] == "tester"

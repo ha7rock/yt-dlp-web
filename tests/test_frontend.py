@@ -1,78 +1,126 @@
 from pathlib import Path
 
-APP_JS = Path(__file__).resolve().parents[1] / "static" / "app.js"
+ROOT = Path(__file__).resolve().parents[1]
+APP_JS = ROOT / "static" / "app.js"
+INDEX = ROOT / "static" / "index.html"
 
 
-def test_history_preview_state_is_preserved_across_refreshes():
+def test_redesigned_frontend_uses_handoff_structure_and_tokens():
+    html = INDEX.read_text(encoding="utf-8")
+
+    assert 'class="topbar"' in html
+    assert 'class="url-panel"' in html
+    assert 'id="previewStrip"' in html
+    assert 'id="activeList"' in html
+    assert 'id="historyList"' in html
+    assert 'id="toastWrap"' in html
+    assert "--accent: oklch(68% 0.22 28)" in html
+    assert "--radius-xl: 28px" in html
+    assert "@keyframes shimmer" in html
+    assert "@keyframes fadeSlideIn" in html
+
+
+def test_theme_toggle_persists_to_local_storage():
     js = APP_JS.read_text(encoding="utf-8")
+    html = INDEX.read_text(encoding="utf-8")
 
-    assert "openPreviewIds" in js
-    assert "data-preview-id" in js
-    assert "collectOpenPreviewIds" in js
-    assert "restoreOpenPreviewIds" in js
+    assert 'id="themeToggle"' in html
+    assert "localStorage.getItem('theme')" in js
+    assert "localStorage.setItem('theme'" in js
+    assert "data-theme" in js
 
 
-def test_history_polling_skips_refresh_while_preview_is_open():
+def test_url_parse_and_download_buttons_call_apis():
     js = APP_JS.read_text(encoding="utf-8")
+    html = INDEX.read_text(encoding="utf-8")
 
-    assert "hasOpenPreview()" in js
-    assert "skip history refresh because preview is open" in js
-
-
-def test_frontend_debug_log_helper_exists():
-    js = APP_JS.read_text(encoding="utf-8")
-
-    assert "debugLog(" in js
-    assert "[yt-dlp-web]" in js
+    assert 'id="url"' in html
+    assert 'id="probe"' in html
+    assert 'id="download"' in html
+    assert "/api/info" in js
+    assert "/api/download" in js
+    assert "POST" in js
 
 
-def test_download_polling_stops_when_no_active_jobs():
-    js = APP_JS.read_text(encoding="utf-8")
+def test_settings_match_readme_fields_and_advanced_panel():
+    html = INDEX.read_text(encoding="utf-8")
 
-    assert "activeJobs" in js
-    assert "activeJobs.length === 0" in js
-    assert "stop polling because no active jobs" in js
-    assert "pollTimer = null" in js
-
-
-def test_tasks_section_only_shows_active_downloads_and_refreshes_history_on_completion():
-    js = APP_JS.read_text(encoding="utf-8")
-    html = (APP_JS.parent / "index.html").read_text(encoding="utf-8")
-
-    assert "正在下载" in html
-    assert html.index('id="refreshJobs"') > html.index('id="jobs"') - 200
-    assert "activeJobs = allJobs.filter" in js
-    assert "暂无正在下载任务" in js
-    assert "completedSinceLastPoll" in js
-    assert "refresh history because a task finished" in js
-    assert "loadHistory(1, {force: true})" in js
-
-
-def test_ios_compatible_checkbox_exists_and_is_not_format_option():
-    js = APP_JS.read_text(encoding="utf-8")
-    html = (APP_JS.parent / "index.html").read_text(encoding="utf-8")
-
+    assert 'id="quality"' in html
+    assert 'id="mergeOutputFormat"' in html
+    assert 'id="audioFormat"' in html
+    assert 'id="audioOnly"' in html
     assert 'id="iosCompatible"' in html
-    assert 'value="ios"' not in html
-    assert "iOS 兼容" in html
+    assert 'id="playlist"' in html
+    assert 'id="advPanel"' in html
+    assert 'id="subLangs"' in html
+    assert 'id="rateLimit"' in html
+    assert 'id="retries"' in html
+    assert 'id="extraArgs"' in html
+
+
+def test_progress_polling_and_completion_refresh_history():
+    js = APP_JS.read_text(encoding="utf-8")
+
+    assert "setInterval" in js
+    assert "/api/jobs" in js
+    assert "loadHistory(1)" in js
+    assert "renderJobs" in js
+
+
+def test_history_search_pagination_and_delete_apis():
+    js = APP_JS.read_text(encoding="utf-8")
+    html = INDEX.read_text(encoding="utf-8")
+
+    assert 'id="searchInput"' in html
+    assert 'id="pagination"' in html
+    assert "/api/history" in js
+    assert "/api/history/delete" in js
+    assert "deleteItem" in js
+
+
+def test_mobile_breakpoints_from_readme_exist():
+    html = INDEX.read_text(encoding="utf-8")
+
+    assert "@media (max-width: 600px)" in html
+    assert "@media (max-width: 400px)" in html
+    assert "max-width: 800px" in html
+
+
+def test_frontend_extracts_app_share_text_and_ios_toggle_is_youtube_scoped():
+    js = APP_JS.read_text(encoding="utf-8")
+
+    assert "extractUrl" in js
     assert "isYouTubeUrl" in js
-    assert "updateIosCompatibleAvailability" in js
+    assert "iosCompatible" in js
     assert "ios_compatible" in js
-    assert "$('iosCompatible').disabled = !enabled" in js
+    assert "disabled" in js
 
 
-def test_clipboard_button_has_ios_safari_manual_paste_fallback():
+def test_toggle_chips_do_not_double_toggle_hidden_checkbox():
     js = APP_JS.read_text(encoding="utf-8")
 
-    assert "当前浏览器不允许自动读取剪切板" in js
-    assert "$('url').focus()" in js
-    assert "$('url').select()" in js
+    assert "cb.addEventListener('change'" in js
+    assert "el.addEventListener('click'" not in js
 
 
-def test_clipboard_button_and_frontend_url_extraction_exist():
+def test_player_modal_supports_video_preview_and_actions():
     js = APP_JS.read_text(encoding="utf-8")
-    html = (APP_JS.parent / "index.html").read_text(encoding="utf-8")
+    html = INDEX.read_text(encoding="utf-8")
 
-    assert "pasteClipboard" in html
-    assert "navigator.clipboard.readText" in js
-    assert "extractUrlFromInput" in js
+    assert 'id="playerModal"' in html
+    assert 'id="playerVideo"' in html
+    assert 'id="playerThumbBg"' in html
+    assert 'id="playerOpenBtn"' in html
+    assert 'id="playerDownloadBtn"' in html
+    assert "openPlayer" in js
+    assert "preview_url" in js
+    assert "object-fit: contain" in html
+
+
+def test_progress_bar_shimmer_and_backend_tick_remain_smooth():
+    app_py = (ROOT / "app.py").read_text(encoding="utf-8")
+    html = INDEX.read_text(encoding="utf-8")
+
+    assert "time.sleep(0.25)" in app_py
+    assert ".dl-progress-bar" in html
+    assert "shimmer" in html
